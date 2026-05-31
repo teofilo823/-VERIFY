@@ -2,55 +2,94 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Gateway de Verificação Segura</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gateway de Verificação Avançada</title>
     <style>
-        body { background-color: #121318; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
-        .btn { background-color: #1a73e8; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background-color: #155cb4; }
+        body { background-color: #0c0d12; color: #f1f3f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding-top: 100px; }
+        .container { max-width: 500px; margin: 0 auto; background: #131520; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .btn { background-color: #5865F2; color: white; border: none; padding: 16px 32px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; transition: 0.2s; }
+        .btn:hover { background-color: #4752c4; }
         .escondido { display: none; }
+        .spinner { border: 4px solid rgba(255,255,255,0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #5865F2; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <h1>⚡ Verificação Anti-Alt</h1>
-    <p id="instrucao">Clique no botão abaixo para autenticar sua conta e verificar seu dispositivo.</p>
-    <br>
-    
-    <a id="btn-login" class="btn" href="https://discord.com/oauth2/authorize?client_id=837047332654153772&response_type=code&redirect_uri=https%3A%2F%2Fteofilo823.github.io%2F-VERIFY%2F&scope=identify">Verificar Identidade com o Discord</a>
-    
-    <h2 id="status" class="escondido">Analisando hardware e IP...</h2>
+    <div class="container">
+        <h1>🛡️ Verificação Anti-Alt</h1>
+        <p id="instrucao">Clique abaixo para realizar a varredura de hardware e liberar seu acesso ao servidor.</p>
+        <br>
+        
+        <a id="btn-login" class="btn" href="https://discord.com/oauth2/authorize?client_id=837047332654153772&response_type=token&redirect_uri=https%3A%2F%2Fteofilo823.github.io%2F-VERIFY%2F&scope=identify">Verificar Identidade via Discord</a>
+        
+        <div id="processando" class="escondido">
+            <div class="spinner"></div>
+            <h3>Analisando integridade do dispositivo...</h3>
+            <p style="color: #8a8f9f; font-size: 14px;">Coletando dados de hardware e rede para prevenção de fraude.</p>
+        </div>
+
+        <h2 id="status"></h2>
+    </div>
 
     <script>
-        // Captura o token do Discord vindo da URL após o login
         const fragment = new URLSearchParams(window.location.hash.slice(1));
         const accessToken = fragment.get('access_token');
 
+        // Função para gerar uma assinatura única baseada no hardware do navegador
+        function gerarFingerprint() {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            let gpu = "Desconhecida";
+            if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            }
+            
+            // Junta dados únicos da máquina do usuário
+            const dadosHardware = [
+                navigator.userAgent,
+                screen.width + 'x' + screen.height,
+                new Date().getTimezoneOffset(),
+                navigator.hardwareConcurrency, // Núcleos de CPU
+                navigator.deviceMemory,        // Memória RAM aproximada
+                gpu                            // Placa de vídeo exata
+            ].join('||');
+
+            // Transforma a string em um hash simples (ID quase único)
+            let hash = 0;
+            for (let i = 0; i < dadosHardware.length; i++) {
+                const char = dadosHardware.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return 'HW-' + Math.abs(hash);
+        }
+
         if (accessToken) {
-            // Esconde o botão e mostra que está processando
             document.getElementById('btn-login').classList.add('escondido');
             document.getElementById('instrucao').classList.add('escondido');
-            const statusTxt = document.getElementById('status');
-            statusTxt.classList.remove('escondido');
+            document.getElementById('processando').classList.remove('escondido');
 
-            // 1. Pega os dados do usuário no Discord usando o Token obtido
+            // 1. Pega dados da conta do usuário no Discord
             fetch('https://discord.com/api/users/@me', {
                 headers: { authorization: `Bearer ${accessToken}` }
             })
             .then(res => res.json())
             .then(user => {
-                // 2. Envia o ID do usuário e o IP para a API do seu bot na Discloud
-                // Pegamos o IP usando um serviço público gratuito (api.ipify.org)
+                // 2. Coleta o IP público real
                 fetch('https://api.ipify.org?format=json')
                 .then(res => res.json())
                 .then(ipData => {
-                    
-                    // Envia os dados estruturados para o Webhook do seu canal de logs
+                    const hardwareID = gerarFingerprint();
+
+                    // 3. Dispara o Webhook estruturado para o Bot processar na Discloud
                     const dadosWebhook = {
                         embeds: [{
-                            title: "Análise Forense de Verificação",
+                            title: "Requisição de Entrada Segura",
                             fields: [
                                 { name: "ID do Utilizador", value: user.id, inline: true },
                                 { name: "IP Detetado", value: ipData.ip, inline: true },
-                                { name: "Ação", value: "REQUISITAR_VALIDACAO", inline: false }
+                                { name: "ID de Hardware (Fingerprint)", value: hardwareID, inline: false }
                             ]
                         }]
                     };
@@ -60,12 +99,14 @@
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(dadosWebhook)
                     }).then(() => {
-                        statusTxt.innerHTML = "<h1>✅ Verificação Concluída! Pode voltar ao Discord.</h1>";
+                        document.getElementById('processando').classList.add('escondido');
+                        document.getElementById('status').innerHTML = "<span style='color: #43b581;'>✅ Autorizado! Pode voltar ao Discord.</span>";
                     });
                 });
             })
             .catch(err => {
-                statusTxt.innerHTML = "<h1>❌ Erro ao processar a verificação.</h1>";
+                document.getElementById('processando').classList.add('escondido');
+                document.getElementById('status').innerHTML = "<span style='color: #f04747;'>❌ Falha na autenticação.</span>";
             });
         }
     </script>
